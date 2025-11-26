@@ -13,6 +13,16 @@ mount -t devpts devpts /dev/pts
 mount -t tmpfs tmpfs /dev/shm
 mkdir -p /var/log
 
+log_phase() {
+	# Emit a simple boot marker with kernel uptime
+	if [ -r /proc/uptime ]; then
+		uptime=$(cut -d' ' -f1 < /proc/uptime)
+		printf '[BOOT] %s at %ss\n' "$1" "$uptime"
+	fi
+}
+
+log_phase "init start"
+
 export HOME=/root
 export DISPLAY=:0
 export PATH="/usr/bin:/bin"

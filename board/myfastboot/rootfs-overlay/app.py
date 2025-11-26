@@ -42,6 +42,15 @@ class FastBootApp(tk.Tk):
 
 def main() -> None:
     app = FastBootApp()
+    def log_ready() -> None:
+        try:
+            with open("/proc/uptime", "r", encoding="ascii") as uptime_file:
+                uptime = float(uptime_file.read().split()[0])
+            print(f"[BOOT] Tk ready at {uptime:6.3f}s", flush=True)
+        except (OSError, ValueError) as exc:
+            print(f"[BOOT] Tk ready (uptime unavailable): {exc}", flush=True)
+
+    app.after_idle(log_ready)
     app.mainloop()
 
 
