@@ -28,4 +28,4 @@ export PATH="/usr/bin:/bin"
 export XDG_RUNTIME_DIR=/run
 
 log_phase "starting gui"
-exec /usr/bin/python3 /app.py
+exec /usr/bin/fastfb

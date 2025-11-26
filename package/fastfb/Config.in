@@ -1,0 +1,6 @@
+config BR2_PACKAGE_FASTFB
+	bool "fastfb"
+	help
+	  Tiny framebuffer clock application optimised for fast-boot experiments.
+	  It waits for /dev/fb0, clears the screen, and renders an uptime clock
+	  directly into the framebuffer without any userspace graphics stack.
