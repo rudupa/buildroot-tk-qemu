@@ -27,5 +27,51 @@ export HOME=/root
 export PATH="/usr/bin:/bin"
 export XDG_RUNTIME_DIR=/run
 
+ROS_DEVICE=""
+ROS_DEVICE_CANDIDATES="/dev/vda /dev/mmcblk0p3"
+ROS_MOUNT="/mnt/ros2"
+ROS_SETUP="/mnt/ros2/opt/ros2/setup.sh"
+ROS_ENV_CACHE="/run/ros2.env"
+
+find_ros_device() {
+	for dev in ${ROS_DEVICE_CANDIDATES}; do
+		if [ -b "$dev" ]; then
+			ROS_DEVICE="$dev"
+			return 0
+		fi
+	done
+	return 1
+}
+
+mount_ros_volume() {
+	log_phase "ros volume wait"
+	i=0
+	while [ $i -lt 40 ]; do
+		if find_ros_device; then
+			mkdir -p "$ROS_MOUNT"
+			if mount -o ro "$ROS_DEVICE" "$ROS_MOUNT" 2>/run/ros2-mount.log; then
+				touch /run/ros2.ready
+				if [ -x "$ROS_SETUP" ]; then
+					log_phase "ros env sourcing"
+					# shellcheck disable=SC1090
+					. "$ROS_SETUP"
+					env | grep -E '^(AMENT|COLCON|ROS|RMW|PYTHONPATH)=' > "$ROS_ENV_CACHE"
+					log_phase "ros env cached"
+				fi
+				log_phase "ros volume ready"
+				return 0
+			fi
+		fi
+		sleep 1
+		i=$((i + 1))
+	done
+	log_phase "ros volume timeout"
+	touch /run/ros2.failed
+}
+
+mount_ros_volume &
+
+export ROS2_ROOT="$ROS_MOUNT"
+
 log_phase "starting gui"
 exec /usr/bin/fastfb

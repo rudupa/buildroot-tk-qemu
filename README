@@ -19,49 +19,97 @@ Quick Start
 *Requirements*: WSL/Ubuntu environment, standard `/usr/bin:/bin` toolchain,
 ~25 GB free disk space.
 
+Buildroot outputs are isolated per profile: `output/qemu/` (QEMU initrd),
+`output/pi4/` (Raspberry Pi images), and `output/ros2/` (shared ROS 2
+filesystem). When you rebuild the ROS 2 data volume it now lands in
+`output/ros2/images/ros2.ext4` and the helper script fans out copies into
+`output/qemu/images/` and `output/pi4/images/` so both profiles stay in
+sync.
+
 ### QEMU profile
 
-```sh
-./rebuild_rootfs.sh
-```
+1. Rebuild the fast-boot initrd:
 
-The script rebuilds the QEMU-oriented image, then boots it with the
-repository-provided `run_qemu.sh`. On the current host we observe ~5 s from
-QEMU power-on to `fastfb` drawing to the virtual framebuffer (timed via serial
-console timestamps).
+	```sh
+	./rebuild_rootfs.sh
+	```
+
+2. (Optional, recommended) Refresh the shared ROS 2 data volume:
+
+	```sh
+	./rebuild_ros2_volume.sh
+	```
+
+3. Launch the emulator:
+
+	```sh
+	./run_qemu.sh
+	```
+
+If `ros2.ext4` is present in `output/qemu/images/`, QEMU maps it as `/dev/vda`
+and PID 1 mounts it to `/mnt/ros2` while `fastfb` paints the splash (currently
+~5 s from VM start). Artifacts live under `output/qemu/images/` (e.g. `Image`,
+`rootfs.cpio.gz`, `ros2.ext4`).
 
 ### Raspberry Pi 4 profile
 
 ```sh
+./rebuild_ros2_volume.sh   # optional, run first to embed ROS 2 data
 ./rebuild_pi4.sh
 ```
 
 The helper script applies `configs/myfastboot_rpi4_defconfig`, performs the
-full Buildroot build, and produces deployable artifacts in `output/images/`
-(notably `sdcard.img`, `boot.vfat`, `rootfs.ext2`). Flash `sdcard.img` to an
+full Buildroot build, and produces deployable artifacts in
+`output/pi4/images/` (notably `sdcard.img`, `boot.vfat`, `rootfs.ext2`,
+`ros2.ext4`). Flash `sdcard.img` to an
 SD card (e.g. with `dd` or Raspberry Pi Imager) and boot on a Pi 4. Expect
 roughly 8–12 s from power-on to the framebuffer splash on a fast UHS-I card,
 with realistic optimisation ceiling around 2–3 s without bypassing the stock
 Pi firmware.
 
+If you rebuild the ROS 2 volume, rerun `./rebuild_pi4.sh` so the post-image
+step can roll the refreshed `ros2.ext4`—copied for you into
+`output/pi4/images/`—into `sdcard.img`.
+
 Features & Components
 ---------------------
 
-* `configs/myfastboot_rpi4_defconfig` – board support based on the official
-	Raspberry Pi post-build/image hooks, wired to the Bootlin external toolchain.
+* `configs/my_defconfig` – QEMU Stage 0 initrd with BusyBox + `fastfb`.
+* `configs/myfastboot_ros2_defconfig` – Stage 1 ROS 2 filesystem image built
+ 	as a standalone ext4 volume.
+* `configs/myfastboot_rpi4_defconfig` – Raspberry Pi 4 board support wired to
+ 	the Bootlin external toolchain.
 * `board/myfastboot/pi4/cmdline.txt` – trimmed kernel command line forcing
-	`/init` execution of `fastfb`.
+ 	`/init` execution of `fastfb`.
+* `board/myfastboot/pi4/post-image.sh` – wraps the Raspberry Pi tooling to add
+	the optional `ros2.ext4` partition to the SD image.
 * `package/fastfb/` – lightweight C framebuffer demo built as the sole
-	userspace application.
+ 	userspace application.
 * `board/myfastboot/rootfs-overlay/init` – BusyBox init script that mounts
-	pseudo filesystems and hands off to `fastfb`.
+ 	pseudo filesystems, boots the GUI, and asynchronously attaches the ROS 2
+ 	volume at `/mnt/ros2` (flagged via `/run/ros2.ready`).
+* `board/myfastboot/ros2-overlay/` – seed content copied into the ROS 2 volume
+ 	(e.g. `opt/ros2`).
 
 Reproducibility Helpers
 -----------------------
 
 * `rebuild_rootfs.sh` – rebuild + launch the QEMU profile end-to-end.
+* `rebuild_ros2_volume.sh` – create / refresh the ROS 2 ext4 volume used by
+ 	QEMU and Raspberry Pi builds alike.
 * `rebuild_pi4.sh` – configure and rebuild the Raspberry Pi 4 image.
-* `run_qemu.sh` – headless emulation harness for verifying the minimal stack.
+* `run_qemu.sh` – emulation harness that auto-attaches `ros2.ext4` when ready,
+  using artifacts from `output/qemu/images/`.
+
+Two-Stage Filesystem Layout
+---------------------------
+
+Stage 0 (initrd) stays tiny so that `fastfb` launches quickly. Once `/dev/vda`
+appears the init script mounts Stage 1 read-only under `/mnt/ros2` and exports
+`ROS2_ROOT`. Applications can watch `/run/ros2.ready` before starting ROS 2
+nodes. The Raspberry Pi post-image script consumes
+`output/pi4/images/ros2.ext4`—kept in sync by `./rebuild_ros2_volume.sh`—and adds
+it as a third partition on the SD card, mirroring the QEMU layout.
 
 Boot Optimisation Notes
 -----------------------
@@ -71,6 +119,37 @@ lining. Early Pi 4 targets converge toward: firmware (~700 ms), kernel
 decompression + init (~1.0–1.5 s), userspace handoff (~0.5 s). Further
 reductions require aggressive kernel pruning, fast storage, and potentially
 custom bootloader paths.
+
+Kiosk & OTA Roadmap
+-------------------
+
+Next hardware milestone is a Raspberry Pi 4 kiosk driving a 27" HDMI panel in
+full-screen mode while remaining field-updatable. The kiosk workload continues
+to lean on the minimal Stage 0 image, but the display pipeline must target the
+panel native mode (likely 1920×1080 or 2560×1440 @ 60 Hz) and lock the session
+down so the framebuffer app (or a future Wayland/browser client) owns the
+screen. In parallel we need an over-the-air flow so updated images or ROS
+content can be pushed remotely without SD card swaps.
+
+TODO
+----
+
+- Confirm the 27" monitor EDID, then extend `board/myfastboot/pi4/cmdline.txt`
+	and `rpi-firmware/config.txt` with explicit HDMI timing overrides so the
+	framebuffer always boots at the panel native resolution.
+- Update `fastfb` (or replace it with a Wayland/browser kiosk shell) to scale
+	correctly at 1080p+/landscape, hide the console, and auto-restart if the
+	process dies.
+- Add a Buildroot package layer for the kiosk app assets so refreshed branding
+	can be delivered in the Stage 1 ROS volume without touching the initrd.
+- Evaluate OTA tooling (RAUC, SWUpdate, or Buildroot’s built-in Mender
+	integration) and prototype dual-rootfs or image streaming that fits the
+	current partition map.
+- Stand up a remote update server plus signing keys, then script an
+	`update-client` service in the rootfs overlay to poll, download, and apply
+	signed bundles.
+- Document the field update workflow end to end, covering rollback triggers,
+	monitoring hooks, and how ROS content syncs with system-level updates.
 
 Contribution & Support
 ----------------------
