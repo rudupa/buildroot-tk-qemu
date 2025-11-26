@@ -150,6 +150,50 @@ TODO
 	signed bundles.
 - Document the field update workflow end to end, covering rollback triggers,
 	monitoring hooks, and how ROS content syncs with system-level updates.
+- Quantum computing simulations tracker:
+	- Survey open-source simulators (Qiskit Aer, Cirq, PennyLane) for local runs.
+	- Prototype Buildroot-friendly packaging or containerisation for chosen simulator.
+	- Draft benchmarking plan comparing classical vs simulated quantum workloads.
+	- Capture learning notes and sample circuits in `docs/` for reuse.
+
+Architecture Pattern Tracker
+----------------------------
+
+- Minimal initramfs + full rootfs handoff — `✅` implemented via two-stage boot.
+- Split filesystem (fastboot + payload) — `✅` active (Stage 0 initrd + ROS volume).
+- OverlayFS/UnionFS runtime overlay — `⬜` not yet adopted; consider future Stage 2 persistence.
+- Deferred device bring-up — `⬜` planned once kiosk peripherals defined.
+- Service-oriented boot pipeline — `✅` partial (systemd units, further parallelisation TBD).
+- Split core / heterogeneous processing — `⬜` future work for MCU offload.
+- Microkernel + userland partitioning — `⬜` not targeted currently.
+- Hypervisor-based mixed-criticality partitioning — `⬜` not targeted currently.
+- A/B system partitions with OTA — `⬜` design phase.
+- Delta-friendly storage with OSTree — `⬜` evaluation backlog.
+- Containerized ROS 2 deployment — `✅` ROS volume builds; containers optional.
+- Hardware abstraction layer (HAL) contracts — `⬜` to formalise once ROS nodes mature.
+- Secure boot chain & measured boot — `⬜` future security hardening.
+- Fault-tolerant messaging/watchdog mesh — `⬜` not yet designed.
+- Deterministic low-latency compute cluster — `⬜` not applicable to Pi PoC.
+- Time-triggered robotics middleware — `⬜` not in scope yet.
+- Data governance & telemetry bus — `⬜` pending kiosk analytics requirements.
+- Container-orchestrated observability — `⬜` backlog for fleet monitoring.
+
+Raspberry Pi 4 Feature Tracker
+------------------------------
+
+- Cortex-A72 quad CPU — `✅` primary workload target (fastfb + ROS staging).
+- VideoCore VI GPU (VC4/V3D) — `⬜` customer backlog; fastfb currently uses simple framebuffer.
+- HDMI 2.0 dual display — `⚙️` in progress for kiosk 27" monitor (EDID capture pending).
+- CSI camera interface — `⬜` not in roadmap yet.
+- DSI display interface — `⬜` not planned; HDMI-only kiosk.
+- PCIe x1 lane — `⬜` unused.
+- USB 3.0 host ports — `⬜` potential for peripherals (touchscreen, cameras) TBD.
+- Gigabit Ethernet — `✅` leveraged for ROS content sync and OTA.
+- Dual-band Wi-Fi (802.11ac) — `⬜` evaluation needed for wireless kiosk deployments.
+- Bluetooth 5.0 — `⬜` unutilised.
+- microSD storage — `✅` primary boot media.
+- GPIO (I2C/SPI/UART) — `⬜` reserved for future kiosk sensors/buttons.
+- Audio (HDMI/3.5 mm) — `⬜` not required yet.
 
 Contribution & Support
 ----------------------
