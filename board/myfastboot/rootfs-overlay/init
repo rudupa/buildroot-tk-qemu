@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
+mount -t tmpfs tmpfs /tmp
+
+export HOME=/root
+export DISPLAY=:0
+export PATH=/usr/bin:/bin:/sbin:/usr/sbin
+
+mkdir -p /tmp/.X11-unix
+
+echo "Starting Tkinter demo under X..."
+xinit /usr/bin/python3 /app.py -- :0 vt1 -s 0 -dpms -nolisten tcp
+
+echo "Application exited, powering off"
+poweroff -f

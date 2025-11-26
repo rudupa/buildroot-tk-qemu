@@ -133,6 +133,13 @@ PYTHON3_CONF_ENV += \
 	py_cv_module__ssl=n/a
 endif
 
+ifeq ($(BR2_PACKAGE_PYTHON3_TKINTER),y)
+PYTHON3_DEPENDENCIES += tk
+PYTHON3_CONF_OPTS += --enable-tk
+else
+PYTHON3_CONF_OPTS += --disable-tk
+endif
+
 ifneq ($(BR2_PACKAGE_PYTHON3_CODECSCJK),y)
 PYTHON3_CONF_ENV += \
 	py_cv_module__codecs_cn=n/a \
@@ -209,7 +216,6 @@ PYTHON3_CONF_OPTS += \
 	--with-system-ffi \
 	--disable-pydoc \
 	--disable-test-modules \
-	--disable-tk \
 	--disable-idle3 \
 	--disable-pyc-build
 

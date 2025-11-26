@@ -109,6 +109,15 @@ config BR2_PACKAGE_PYTHON3_SQLITE
 	help
 	  SQLite database support
 
+config BR2_PACKAGE_PYTHON3_TKINTER
+	bool "tkinter module"
+	depends on BR2_PACKAGE_TCL
+	depends on BR2_PACKAGE_XORG7
+	select BR2_PACKAGE_TK
+	help
+	  _tkinter module for Python3, providing bindings to the Tk GUI toolkit.
+	  Requires Tcl/Tk and the X.Org stack.
+
 config BR2_PACKAGE_PYTHON3_PYEXPAT
 	bool "xml module"
 	select BR2_PACKAGE_EXPAT
