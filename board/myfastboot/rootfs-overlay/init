@@ -24,13 +24,8 @@ log_phase() {
 log_phase "init start"
 
 export HOME=/root
-export DISPLAY=:0
 export PATH="/usr/bin:/bin"
 export XDG_RUNTIME_DIR=/run
 
-if [ -x /usr/bin/xsetroot ]; then
-	/usr/bin/xsetroot -solid black &
-fi
-
-exec /usr/bin/xinit /usr/bin/python3 /app.py -- \
-	/usr/bin/Xorg :0 -nolisten tcp -noreset -s 0 -dpms -logfile /var/log/Xorg.0.log
+log_phase "starting gui"
+exec /usr/bin/python3 /app.py

@@ -1,7 +1,2 @@
-CONFIG_DRM=y
-CONFIG_DRM_KMS_HELPER=y
-CONFIG_DRM_VIRTIO_GPU=y
-CONFIG_DRM_SIMPLEDRM=y
-CONFIG_FB=y
-CONFIG_FB_SIMPLE=y
-CONFIG_FRAMEBUFFER_CONSOLE=y
+# Legacy fragment retained for reference only; see linux-fb.fragment for the active
+# framebuffer configuration used by my_defconfig.
