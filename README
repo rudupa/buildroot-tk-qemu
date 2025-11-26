@@ -1,26 +1,80 @@
-Buildroot is a simple, efficient and easy-to-use tool to generate embedded
-Linux systems through cross-compilation.
+MyFastBoot Buildroot
+====================
 
-The documentation can be found in docs/manual. You can generate a text
-document with 'make manual-text' and read output/docs/manual/manual.text.
-Online documentation can be found at http://buildroot.org/docs.html
+This repository customises Buildroot 2025.11-rc1 to prototype an ultra-fast
+boot stack for MyFastBoot. Two build profiles are maintained:
 
-To build and use the buildroot stuff, do the following:
+* **QEMU fast boot harness** – minimal rootfs for functional testing under
+	emulation.
+* **Raspberry Pi 4 target** – hardware-focused image using the Bootlin
+	external aarch64 glibc toolchain and lightweight `fastfb` framebuffer app.
 
-1) run 'make menuconfig'
-2) select the target architecture and the packages you wish to compile
-3) run 'make'
-4) wait while it compiles
-5) find the kernel, bootloader, root filesystem, etc. in output/images
+Both variants share the same `fastfb` userspace program and rootfs overlay
+(`board/myfastboot/rootfs-overlay/`) that launches the demo directly from the
+init process.
 
-You do not need to be root to build or run buildroot.  Have fun!
+Quick Start
+-----------
 
-Buildroot comes with a basic configuration for a number of boards. Run
-'make list-defconfigs' to view the list of provided configurations.
+*Requirements*: WSL/Ubuntu environment, standard `/usr/bin:/bin` toolchain,
+~25 GB free disk space.
 
-Please feed suggestions, bug reports, insults, and bribes back to the
-buildroot mailing list: buildroot@buildroot.org
-You can also find us on #buildroot on OFTC IRC.
+### QEMU profile
 
-If you would like to contribute patches, please read
-https://buildroot.org/manual.html#submitting-patches
+```sh
+./rebuild_rootfs.sh
+```
+
+The script rebuilds the QEMU-oriented image, then boots it with the
+repository-provided `run_qemu.sh`. On the current host we observe ~5 s from
+QEMU power-on to `fastfb` drawing to the virtual framebuffer (timed via serial
+console timestamps).
+
+### Raspberry Pi 4 profile
+
+```sh
+./rebuild_pi4.sh
+```
+
+The helper script applies `configs/myfastboot_rpi4_defconfig`, performs the
+full Buildroot build, and produces deployable artifacts in `output/images/`
+(notably `sdcard.img`, `boot.vfat`, `rootfs.ext2`). Flash `sdcard.img` to an
+SD card (e.g. with `dd` or Raspberry Pi Imager) and boot on a Pi 4. Expect
+roughly 8–12 s from power-on to the framebuffer splash on a fast UHS-I card,
+with realistic optimisation ceiling around 2–3 s without bypassing the stock
+Pi firmware.
+
+Features & Components
+---------------------
+
+* `configs/myfastboot_rpi4_defconfig` – board support based on the official
+	Raspberry Pi post-build/image hooks, wired to the Bootlin external toolchain.
+* `board/myfastboot/pi4/cmdline.txt` – trimmed kernel command line forcing
+	`/init` execution of `fastfb`.
+* `package/fastfb/` – lightweight C framebuffer demo built as the sole
+	userspace application.
+* `board/myfastboot/rootfs-overlay/init` – BusyBox init script that mounts
+	pseudo filesystems and hands off to `fastfb`.
+
+Reproducibility Helpers
+-----------------------
+
+* `rebuild_rootfs.sh` – rebuild + launch the QEMU profile end-to-end.
+* `rebuild_pi4.sh` – configure and rebuild the Raspberry Pi 4 image.
+* `run_qemu.sh` – headless emulation harness for verifying the minimal stack.
+
+Boot Optimisation Notes
+-----------------------
+
+We are actively exploring module trimming, firmware tweaks, and init stream
+lining. Early Pi 4 targets converge toward: firmware (~700 ms), kernel
+decompression + init (~1.0–1.5 s), userspace handoff (~0.5 s). Further
+reductions require aggressive kernel pruning, fast storage, and potentially
+custom bootloader paths.
+
+Contribution & Support
+----------------------
+
+This repo tracks the `pi_4` development branch for the MyFastBoot effort.
+File issues or share measurements via the project discussion channel; for
+upstream Buildroot matters see https://buildroot.org/manual.html.
